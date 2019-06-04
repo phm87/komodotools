@@ -20,11 +20,14 @@ logfile=$HOME/cronsplit.log
 source coinlist
 
 othercoins=(
-'BTC /usr/bin/bitcoin-cli'
 'CHIPS /usr/local/bin/chips-cli'
 'GAME /usr/local/bin/gamecredits-cli'
 'EMC2 /usr/local/bin/einsteinium-cli'
 'GIN /usr/local/bin/gincoin-cli'
+)
+
+hightxfeecoins=(
+'BTC /usr/bin/bitcoin-cli'
 )
 
 sproutcoins=('OOT' 'ZILLA')
@@ -32,6 +35,13 @@ sproutcoins=('OOT' 'ZILLA')
 kmdutxoqty=50
 acutxoqty=50
 otherutxoqty=50
+hightxfeeutxoqtylow=500
+hightxfeeutxoqtymid=200
+hightxfeeutxoqtyhigh=50
+hightxfeeutxoqtylimit=10
+feelow=0.0002
+feemid=0.0009
+feehigh=0.0018
 
 utxoamt=0.00010000
 splitamount=10000
@@ -82,6 +92,23 @@ else
 
         otherutxo=$(${coin[1]} listunspent | jq --arg amt "$coinsutxoamount" '[.[] | select(.amount==($amt|tonumber))] | length')
         if (( otherutxo < otherutxoqty )); then
+            splitter=$(curl --url "http://127.0.0.1:7776" --data "{\"coin\":\"${coin[0]}\",\"agent\":\"iguana\",\"method\":\"splitfunds\",\"satoshis\":\"$coinsplitamount\",\"sendflag\":1,\"duplicates\":$otherutxoqty}")
+            echo "$dt - ${coin[0]} - $splitter" >> $logfile
+        fi
+    done
+    for coins in "${hightxfeecoins[@]}"; do
+        coin=($coins)
+
+        coinsutxoamount=$utxoamt
+        coinsplitamount=$splitamount
+        
+        fee=$(bitcoin-cli estimatesmartfee 6 | jq '.feerate')
+        otherutxo=$(${coin[1]} listunspent | jq --arg amt "$coinsutxoamount" '[.[] | select(.amount==($amt|tonumber))] | length')
+
+        if (( ( otherutxo < hightxfeeutxoqtylimit ) || 
+              ( fee < feehigh && otherutxo < hightxfeeutxoqtyhigh ) || 
+              ( fee < feemid && otherutxo < hightxfeeutxoqtymid ) || 
+              ( fee < feelow && otherutxo < hightxfeeutxoqtylow ) )); then
             splitter=$(curl --url "http://127.0.0.1:7776" --data "{\"coin\":\"${coin[0]}\",\"agent\":\"iguana\",\"method\":\"splitfunds\",\"satoshis\":\"$coinsplitamount\",\"sendflag\":1,\"duplicates\":$otherutxoqty}")
             echo "$dt - ${coin[0]} - $splitter" >> $logfile
         fi
