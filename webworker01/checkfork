@@ -20,10 +20,20 @@ printf "$format" "-ASSET-" "-BLOCKS-" "-LONG-" "-RMT1-" "-RMT2-"
 blocks=$(komodo-cli getinfo | jq .blocks)
 longest=$(komodo-cli getinfo | jq .longestchain)
 remoteblocks=$(echo $remotecheck | jq '.[] | select(.ac_name=="KMD") | .blocks')
+notarizedhashblock=$(echo $remotecheck | jq '.[] | select(.ac_name=="KMD") | .notarized | tonumber')
+notarizedhash=$(echo $remotecheck | jq '.[] | select(.ac_name=="KMD") | .notarizedhash')
+temp="${notarizedhash%\"}"
+temp="${temp#\"}"
+localhash=$(komodo-cli getblockhash $notarizedhashblock)
 remoteblocks2=$(echo $remotecheck2 | jq '.status[] | select(.chain=="KMD") | .height | tonumber')
 diff1=$((blocks-remoteblocks))
 diff2=$((blocks-remoteblocks2))
 thisformat=$format
+if (( "Z${temp#0}" != "Z${localhash#0}" )); then
+    echo "KMD Forked (emergency to update ?)"
+    forked=true
+    thisformat=$redformat
+fi
 if ((blocks < longest)); then
     forked=true
     thisformat=$redformat
@@ -73,10 +83,21 @@ for coins in "${coinlist[@]}"; do
         blocks=$(komodo-cli -ac_name=${coin[0]} getinfo | jq .blocks)
         longest=$(komodo-cli -ac_name=${coin[0]} getinfo | jq .longestchain)
         remoteblocks=$(echo $remotecheck | jq --arg acname ${coin[0]} '.[] | select(.ac_name==$acname) | .blocks')
+        notarizedhashblock=$(echo $remotecheck | jq --arg acname ${coin[0]} '.[] | select(.ac_name==$acname) | .notarized | tonumber')
+        notarizedhash=$(echo $remotecheck | jq --arg acname ${coin[0]} '.[] | select(.ac_name==$acname) | .notarizedhash')
+        temp="${notarizedhash%\"}"
+        temp="${temp#\"}"
+#        echo "$temp"
+        localhash=$(komodo-cli -ac_name=${coin[0]} getblockhash $notarizedhashblock)
         remoteblocks2=$(echo $remotecheck2 | jq --arg acname ${coin[0]} '.status[] | select(.chain==$acname) | .height | tonumber')
         diff1=$((blocks-remoteblocks))
         diff2=$((blocks-remoteblocks2))
         thisformat=$format
+        if (( "Z${temp#0}" != "Z${localhash#0}" )); then
+            echo "${coin[0]} Forked on nota (emergency to update ?)"
+            forked=true
+            thisformat=$redformat
+        fi
         if ((blocks < longest)); then
             forked=true
             thisformat=$redformat
