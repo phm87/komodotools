@@ -64,7 +64,7 @@ SPLIT_VALUE_SATOSHI=10000
 SPLIT_TOTAL=$(jq -n "$SPLIT_VALUE*$SPLIT_COUNT")
 
 NN_PUBKEY=021773a38db1bc3ede7f28142f901a161c7b7737875edbb40082a201c55dcf0add
-$($komodoexec $asset validateaddress $NN_ADDRESS | jq -r .pubkey)
+# $($komodoexec $asset validateaddress $NN_ADDRESS | jq -r .pubkey)
 nob58=$(decodeBase58 $NN_ADDRESS)
 NN_HASH160=$(echo ${nob58:2:-8})
 
